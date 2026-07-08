@@ -229,12 +229,36 @@
     }
 
     // 移动端或无系统 TTS：用百度 TTS 在线语音（不依赖系统引擎）
-    if (currentTTS) { currentTTS.pause(); currentTTS = null; }
-    const url = 'https://fanyi.baidu.com/gettts?lan=zh&text=' + encodeURIComponent(text) + '&spd=3&source=web';
-    currentTTS = new Audio(url);
-    currentTTS.onended = () => { currentTTS = null; cleanup(); };
-    currentTTS.onerror = () => { currentTTS = null; cleanup(); };
-    currentTTS.play().catch(() => { currentTTS = null; cleanup(); });
+    playOnlineTTS(text, cleanup);
+  }
+
+  // 在线 TTS：用 DOM audio 元素（比 new Audio 在移动端更可靠）
+  function playOnlineTTS(text, cleanup) {
+    let ttsEl = document.getElementById('ttsAudio');
+    if (!ttsEl) {
+      ttsEl = document.createElement('audio');
+      ttsEl.id = 'ttsAudio';
+      ttsEl.style.display = 'none';
+      document.body.appendChild(ttsEl);
+    }
+    ttsEl.pause();
+    ttsEl.onended = cleanup;
+    ttsEl.onerror = () => { cleanup(); toast('语音加载失败，请检查网络'); };
+    ttsEl.src = 'https://fanyi.baidu.com/gettts?lan=zh&text=' + encodeURIComponent(text) + '&spd=3&source=web';
+    ttsEl.load();
+    // 移动端需在手势栈内 play，即使音频未加载完也会排队播放
+    const p = ttsEl.play();
+    if (p && p.catch) p.catch(() => {
+      // play 被拒绝，尝试 Web Speech fallback
+      if ('speechSynthesis' in window) {
+        try {
+          const u = new SpeechSynthesisUtterance(text);
+          u.lang = 'zh-CN'; u.rate = 0.8;
+          u.onend = cleanup; u.onerror = cleanup;
+          window.speechSynthesis.speak(u);
+        } catch (e) { cleanup(); }
+      } else { cleanup(); }
+    });
   }
 
   // ============ WebAudio 音效 ============
@@ -445,7 +469,7 @@
           <button class="btn btn-outline" onclick="location.hash='#/stats'">📈 统计</button>
           <button class="btn btn-outline" onclick="location.hash='#/settings'">⚙️ 设置</button>
         </div>
-        <p style="text-align:center;font-size:11px;color:var(--text-light);padding:16px 0 8px">数据保存在本地浏览器 · 可离线使用</p>
+        <p style="text-align:center;font-size:11px;color:var(--text-light);padding:16px 0 8px">趣味识字 v3.1 · 数据保存在本地浏览器</p>
       </div>
     `;
   }
@@ -1161,7 +1185,7 @@
         ` : ''}
         <div class="section-title" style="color:var(--danger)">危险操作</div>
         <button class="btn" id="resetBtn" style="background:var(--danger);color:white">🗑️ 重置所有进度</button>
-        <p style="text-align:center;font-size:11px;color:var(--text-light);padding:24px 0 8px">趣味识字 v3.0 · 混合学习流 + 错题本 · 适合5-6岁</p>
+        <p style="text-align:center;font-size:11px;color:var(--text-light);padding:24px 0 8px">趣味识字 v3.1 · 百度TTS · 适合5-6岁</p>
       </div>
     `;
     document.getElementById('dailyNew').onchange = (e) => { progress.dailyNew = parseInt(e.target.value); saveProgress(); toast('设置已保存'); };
