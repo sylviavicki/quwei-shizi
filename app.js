@@ -206,35 +206,35 @@
     voices = window.speechSynthesis.getVoices();
     window.speechSynthesis.onvoiceschanged = () => { voices = window.speechSynthesis.getVoices(); };
   }
+  let currentTTS = null; // 当前在线 TTS Audio 对象（防 GC）
   function speak(text, btn) {
-    if (!('speechSynthesis' in window)) {
-      toast('浏览器不支持语音朗读，建议用 Chrome');
-      return;
+    if (!text) return;
+    const cleanup = () => { if (btn) btn.classList.remove('speaking'); };
+    if (btn) btn.classList.add('speaking');
+
+    // 桌面端 + 有系统 TTS 引擎：优先用 Web Speech API
+    if (!IS_MOBILE && 'speechSynthesis' in window) {
+      if (!voices.length) voices = window.speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'zh-CN'; u.rate = 0.8; u.pitch = 1.1;
+        const zh = voices.find(v => v.lang.startsWith('zh') && /female|女|ting/i.test(v.name))
+          || voices.find(v => v.lang.startsWith('zh'))
+          || voices.find(v => v.lang.startsWith('cmn'));
+        if (zh) u.voice = zh;
+        u.onend = cleanup; u.onerror = cleanup;
+        try { window.speechSynthesis.speak(u); return; } catch (e) {}
+      }
     }
-    // 确保 voices 已加载
-    if (!voices.length) voices = window.speechSynthesis.getVoices();
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'zh-CN'; u.rate = 0.8; u.pitch = 1.1;
-    const zh = voices.find(v => v.lang.startsWith('zh') && /female|女|ting/i.test(v.name))
-      || voices.find(v => v.lang.startsWith('zh'))
-      || voices.find(v => v.lang.startsWith('cmn'));
-    if (zh) u.voice = zh;
-    if (btn) {
-      btn.classList.add('speaking');
-      u.onend = () => btn.classList.remove('speaking');
-      u.onerror = () => btn.classList.remove('speaking');
-    }
-    // 移动端：先 cancel 再 speak，并确保在手势栈内
-    try { window.speechSynthesis.speak(u); } catch (e) { toast('语音播放失败'); }
-    // 移动端 hack：某些浏览器需要延迟再触发一次
-    if (IS_MOBILE) {
-      setTimeout(() => {
-        if (window.speechSynthesis.speaking === false && window.speechSynthesis.pending === false) {
-          try { window.speechSynthesis.speak(u); } catch (e) {}
-        }
-      }, 200);
-    }
+
+    // 移动端或无系统 TTS：用百度 TTS 在线语音（不依赖系统引擎）
+    if (currentTTS) { currentTTS.pause(); currentTTS = null; }
+    const url = 'https://fanyi.baidu.com/gettts?lan=zh&text=' + encodeURIComponent(text) + '&spd=3&source=web';
+    currentTTS = new Audio(url);
+    currentTTS.onended = () => { currentTTS = null; cleanup(); };
+    currentTTS.onerror = () => { currentTTS = null; cleanup(); };
+    currentTTS.play().catch(() => { currentTTS = null; cleanup(); });
   }
 
   // ============ WebAudio 音效 ============
