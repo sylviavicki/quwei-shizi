@@ -523,7 +523,7 @@
 
     app.innerHTML = `
       <div class="learn-header">
-        <button class="exit-btn" onclick="if(confirm('退出学习？进度已保存'))location.hash='#/'">✕</button>
+        <button class="exit-btn" onclick="location.hash='#/'">✕</button>
         <span class="counter">${counter} · ${subLabel}</span>
         ${viewState.combo >= 2 ? `<span class="combo-badge">⚡${viewState.combo}连</span>` : '<span style="width:36px"></span>'}
       </div>
@@ -562,7 +562,7 @@
   function renderListenRepeat(app, item, counter, subLabel, onNext) {
     app.innerHTML = `
       <div class="learn-header">
-        <button class="exit-btn" onclick="if(confirm('退出学习？进度已保存'))location.hash='#/'">✕</button>
+        <button class="exit-btn" onclick="location.hash='#/'">✕</button>
         <span class="counter">${counter} · ${subLabel}</span>
         ${viewState.combo >= 2 ? `<span class="combo-badge">⚡${viewState.combo}连</span>` : '<span style="width:36px"></span>'}
       </div>
@@ -586,7 +586,7 @@
   function renderLearnHeader(counter, subLabel) {
     return `
       <div class="learn-header">
-        <button class="exit-btn" onclick="if(confirm('退出学习？进度已保存'))location.hash='#/'">✕</button>
+        <button class="exit-btn" onclick="location.hash='#/'">✕</button>
         <span class="counter">${counter}${subLabel ? ' · ' + subLabel : ''}</span>
         ${viewState.combo >= 2 ? `<span class="combo-badge">⚡${viewState.combo}连</span>` : '<span style="width:36px"></span>'}
       </div>
@@ -716,6 +716,12 @@
       } else if (viewState.replay) {
         // 再学一遍：不更新进度，只计 combo
         viewState.correctCount++;
+      } else if (viewState.wrongPractice) {
+        // 错题练习：答对即移出错题本（不依赖完全掌握判定）
+        reviewAnswer(item.id, true);
+        viewState.stars++; viewState.correctCount++;
+        const wi = progress.wrongBook.indexOf(item.id);
+        if (wi >= 0) { progress.wrongBook.splice(wi, 1); toast(`✅「${item.c}」已移出错题本`); }
       } else {
         const res = reviewAnswer(item.id, true);
         viewState.stars += res.stars; viewState.correctCount++;
