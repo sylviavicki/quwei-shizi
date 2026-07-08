@@ -207,14 +207,34 @@
     window.speechSynthesis.onvoiceschanged = () => { voices = window.speechSynthesis.getVoices(); };
   }
   function speak(text, btn) {
-    if (!('speechSynthesis' in window)) { toast('浏览器不支持语音'); return; }
+    if (!('speechSynthesis' in window)) {
+      toast('浏览器不支持语音朗读，建议用 Chrome');
+      return;
+    }
+    // 确保 voices 已加载
+    if (!voices.length) voices = window.speechSynthesis.getVoices();
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
     u.lang = 'zh-CN'; u.rate = 0.8; u.pitch = 1.1;
-    const zh = voices.find(v => v.lang.startsWith('zh') && /female|女|ting/i.test(v.name)) || voices.find(v => v.lang.startsWith('zh'));
+    const zh = voices.find(v => v.lang.startsWith('zh') && /female|女|ting/i.test(v.name))
+      || voices.find(v => v.lang.startsWith('zh'))
+      || voices.find(v => v.lang.startsWith('cmn'));
     if (zh) u.voice = zh;
-    if (btn) { btn.classList.add('speaking'); u.onend = () => btn.classList.remove('speaking'); u.onerror = () => btn.classList.remove('speaking'); }
-    window.speechSynthesis.speak(u);
+    if (btn) {
+      btn.classList.add('speaking');
+      u.onend = () => btn.classList.remove('speaking');
+      u.onerror = () => btn.classList.remove('speaking');
+    }
+    // 移动端：先 cancel 再 speak，并确保在手势栈内
+    try { window.speechSynthesis.speak(u); } catch (e) { toast('语音播放失败'); }
+    // 移动端 hack：某些浏览器需要延迟再触发一次
+    if (IS_MOBILE) {
+      setTimeout(() => {
+        if (window.speechSynthesis.speaking === false && window.speechSynthesis.pending === false) {
+          try { window.speechSynthesis.speak(u); } catch (e) {}
+        }
+      }, 200);
+    }
   }
 
   // ============ WebAudio 音效 ============
@@ -238,21 +258,27 @@
   function sfxComplete() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => playTone(f, 0.2, 'triangle'), i * 110)); }
   function sfxCombo(n) { playTone(660 + Math.min(n, 10) * 80, 0.1, 'square'); }
 
-  // 移动端音频解锁：必须在用户手势调用栈内执行
+  // 移动端音频解锁：每次用户手势都尝试（不设永久标志，确保移动端可靠解锁）
   function unlockAudio() {
-    if (audioUnlocked) return;
-    audioUnlocked = true;
     const ctx = ensureAudio();
-    if (ctx) {
-      // 播放一个静音音来解锁 AudioContext
-      const osc = ctx.createOscillator(), gain = ctx.createGain();
-      gain.gain.setValueAtTime(0.001, ctx.currentTime);
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.start(); osc.stop(ctx.currentTime + 0.01);
+    if (ctx && ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
     }
-    // 解锁 SpeechSynthesis（发一个空音）
+    if (ctx) {
+      try {
+        const osc = ctx.createOscillator(), gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.001, ctx.currentTime);
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.start(); osc.stop(ctx.currentTime + 0.01);
+      } catch (e) {}
+    }
     if ('speechSynthesis' in window) {
-      try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; window.speechSynthesis.speak(u); } catch(e) {}
+      try {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(' ');
+        u.volume = 0; u.lang = 'zh-CN';
+        window.speechSynthesis.speak(u);
+      } catch (e) {}
     }
   }
 
