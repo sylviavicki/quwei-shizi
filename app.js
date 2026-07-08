@@ -232,7 +232,7 @@
     playOnlineTTS(text, cleanup);
   }
 
-  // 在线 TTS：用 DOM audio 元素（比 new Audio 在移动端更可靠）
+  // 朗读：优先本地音频文件 → 百度在线TTS → Web Speech API 三级 fallback
   function playOnlineTTS(text, cleanup) {
     let ttsEl = document.getElementById('ttsAudio');
     if (!ttsEl) {
@@ -242,14 +242,10 @@
       document.body.appendChild(ttsEl);
     }
     ttsEl.pause();
-    ttsEl.onended = cleanup;
-    ttsEl.onerror = () => { cleanup(); toast('语音加载失败，请检查网络'); };
-    ttsEl.src = 'https://fanyi.baidu.com/gettts?lan=zh&text=' + encodeURIComponent(text) + '&spd=3&source=web';
-    ttsEl.load();
-    // 移动端需在手势栈内 play，即使音频未加载完也会排队播放
-    const p = ttsEl.play();
-    if (p && p.catch) p.catch(() => {
-      // play 被拒绝，尝试 Web Speech fallback
+    const code = text.charCodeAt(0);
+
+    // 第三级：Web Speech API 兜底
+    const tryWebSpeech = () => {
       if ('speechSynthesis' in window) {
         try {
           const u = new SpeechSynthesisUtterance(text);
@@ -258,7 +254,25 @@
           window.speechSynthesis.speak(u);
         } catch (e) { cleanup(); }
       } else { cleanup(); }
-    });
+    };
+
+    // 第二级：百度在线 TTS
+    const tryBaidu = () => {
+      ttsEl.onended = cleanup;
+      ttsEl.onerror = tryWebSpeech;
+      ttsEl.src = 'https://fanyi.baidu.com/gettts?lan=zh&text=' + encodeURIComponent(text) + '&spd=3&source=web';
+      ttsEl.load();
+      const p = ttsEl.play();
+      if (p && p.catch) p.catch(tryWebSpeech);
+    };
+
+    // 第一级：本地音频文件（同源，无跨域问题，移动端最可靠）
+    ttsEl.onended = cleanup;
+    ttsEl.onerror = tryBaidu;
+    ttsEl.src = 'audio/' + code + '.mp3';
+    ttsEl.load();
+    const p = ttsEl.play();
+    if (p && p.catch) p.catch(tryBaidu);
   }
 
   // ============ WebAudio 音效 ============
