@@ -11,6 +11,8 @@
   const BOX_INTERVALS = [0, 0.5, 1, 2, 4, 7, 15];
   const MASTER_STREAK = 3;
   const CHARLIB = window.CHARLIB || [];
+  const IS_MOBILE = /Mobi|Android|iPhone|Harmony|iPad|iPod/i.test(navigator.userAgent);
+  let audioUnlocked = false;
   // 模拟当前时间（支持推进天数测试复习流程）
   function SIM_NOW() { return Date.now() + ((progress && progress.simDayOffset) ? progress.simDayOffset : 0) * 86400000; }
   function TODAY() { return new Date(SIM_NOW()).toISOString().slice(0, 10); }
@@ -236,6 +238,24 @@
   function sfxComplete() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => playTone(f, 0.2, 'triangle'), i * 110)); }
   function sfxCombo(n) { playTone(660 + Math.min(n, 10) * 80, 0.1, 'square'); }
 
+  // 移动端音频解锁：必须在用户手势调用栈内执行
+  function unlockAudio() {
+    if (audioUnlocked) return;
+    audioUnlocked = true;
+    const ctx = ensureAudio();
+    if (ctx) {
+      // 播放一个静音音来解锁 AudioContext
+      const osc = ctx.createOscillator(), gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.001, ctx.currentTime);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(); osc.stop(ctx.currentTime + 0.01);
+    }
+    // 解锁 SpeechSynthesis（发一个空音）
+    if ('speechSynthesis' in window) {
+      try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; window.speechSynthesis.speak(u); } catch(e) {}
+    }
+  }
+
   function confetti() {
     const colors = ['#FF8C42', '#4FC3F7', '#66BB6A', '#FFD54F', '#FF8A95', '#AB83E0'];
     const layer = document.createElement('div');
@@ -349,7 +369,7 @@
           <p>适合5-6岁 · ${CHARLIB.length}字 · 由易到难${progress.simDayOffset > 0 ? ` · 📅 模拟第${progress.simDayOffset + 1}天` : ''}</p>
         </div>
 
-        <div class="task-card study ${hasTask ? '' : 'done'}" onclick="${hasTask ? "location.hash='#/study'" : ''}">
+        <div class="task-card study ${hasTask ? '' : 'done'}" onclick="${hasTask ? "window.__shiziUnlock&&window.__shiziUnlock();location.hash='#/study'" : ''}">
           <div class="task-icon">${hasTask ? '🚀' : '🎉'}</div>
           <h3>今日学习</h3>
           <div class="task-sub">${hasTask
@@ -360,8 +380,8 @@
             <div class="progress-bar"><div class="fill" style="width:${Math.min(100, (todayNewLearned() + todayReviewed()) / Math.max(1, queue.length) * 100)}%"></div></div>
             <button class="btn btn-primary">开始学习 →</button>
           ` : `
-            <button class="btn btn-primary" onclick="event.stopPropagation();location.hash='#/nextday'">📅 进行下一日学习 →</button>
-            <button class="btn btn-outline" onclick="event.stopPropagation();location.hash='#/study?mode=replay'">🔁 再学一遍</button>
+            <button class="btn btn-primary" onclick="event.stopPropagation();window.__shiziUnlock&&window.__shiziUnlock();location.hash='#/nextday'">📅 进行下一日学习 →</button>
+            <button class="btn btn-outline" onclick="event.stopPropagation();window.__shiziUnlock&&window.__shiziUnlock();location.hash='#/study?mode=replay'">🔁 再学一遍</button>
           `}
         </div>
 
@@ -580,7 +600,7 @@
     `;
     const speakBtn = document.getElementById('speakBtn');
     speakBtn.onclick = () => speak(item.c, speakBtn);
-    setTimeout(() => speak(item.c, speakBtn), 300);
+    if (!IS_MOBILE) setTimeout(() => speak(item.c, speakBtn), 300);
     document.getElementById('nextBtn').onclick = onNext;
   }
 
@@ -624,14 +644,14 @@
       ${renderLearnHeader(counter, subLabel)}
       <div class="learn-progress"><div class="fill" style="width:${progressPct(0.55)}%"></div></div>
       <div class="char-card" style="padding:20px 16px">
-        <div class="quiz-prompt">听一听，选出听到的字<button class="speak-btn" id="audioBtn" title="再听一次" style="margin:8px auto;display:flex">🔊</button></div>
+        <div class="quiz-prompt">听一听，选出听到的字<button class="speak-btn" id="audioBtn" title="点这里听读音" style="margin:8px auto;display:flex">🔊</button>${IS_MOBILE ? '<div style="font-size:13px;color:var(--text-light);margin-top:4px">👆 先点喇叭听读音</div>' : ''}</div>
         <div class="options-grid" id="optGrid">${options.map((opt, i) => `<button class="option-btn" data-i="${i}">${opt.c}</button>`).join('')}</div>
         <div id="feedbackArea"></div>
       </div>
     `;
     const ab = document.getElementById('audioBtn');
     ab.onclick = () => speak(item.c, ab);
-    setTimeout(() => speak(item.c, ab), 300);
+    if (!IS_MOBILE) setTimeout(() => speak(item.c, ab), 300);
     bindAnswer(app, item, mode, onCorrect, onWrong, opt => opt.id === item.id);
   }
 
@@ -831,7 +851,7 @@
         </div>
         <div class="actions">
           ${viewState.wrongPractice
-            ? `<button class="btn btn-primary" onclick="location.hash='#/study?mode=wrong'">🔁 再练一遍错题</button>`
+            ? `<button class="btn btn-primary" onclick="window.__shiziUnlock&&window.__shiziUnlock();location.hash='#/study?mode=wrong'">🔁 再练一遍错题</button>`
             : `<button class="btn btn-primary" id="replayBtn">🔁 再学一遍</button>
                <button class="btn btn-outline" id="newDayBtn">📅 进入下一天 →</button>`}
           ${progress.wrongBook.length > 0 ? `<button class="btn btn-outline" onclick="location.hash='#/wrongbook'">📋 错题本</button>` : ''}
@@ -867,7 +887,7 @@
         <p>${sub}</p>
         ${stars > 0 ? `<div class="stars-earned">${starHtml}</div>` : ''}
         <div class="actions">
-          ${withReplay ? `<button class="btn btn-primary" onclick="location.hash='#/study?mode=replay'">🔁 再学一遍</button>` : ''}
+          ${withReplay ? `<button class="btn btn-primary" onclick="window.__shiziUnlock&&window.__shiziUnlock();location.hash='#/study?mode=replay'">🔁 再学一遍</button>` : ''}
           <button class="btn btn-outline" onclick="location.hash='#/'">返回首页</button>
         </div>
       </div>
@@ -1159,6 +1179,7 @@
   function init() {
     progress = loadProgress();
     buildCharLevelMap();
+    window.__shiziUnlock = unlockAudio;
     window.addEventListener('hashchange', route);
     route();
   }
