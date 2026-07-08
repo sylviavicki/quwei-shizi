@@ -522,6 +522,7 @@ html, body {
 }
 .option-btn:disabled {
   cursor: default;
+  opacity: 0.55;
 }
 
 /* 反馈 */

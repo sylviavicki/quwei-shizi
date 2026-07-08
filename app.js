@@ -302,7 +302,8 @@
     // 从 URL query 读取模式（避免 onclick 字符串无法访问闭包内 viewState）
     if (params.get('mode') === 'replay') viewState = { replay: true };
     else if (params.get('mode') === 'wrong') viewState = { wrongPractice: true };
-    else if (!viewState || (!viewState.replay && !viewState.wrongPractice)) viewState = {};
+    else if (path === '/wrongbook') { const s = viewState.wbSelected; viewState = s != null ? { wbSelected: s } : {}; }
+    else viewState = {};
     const app = document.getElementById('app');
     if (path === '/' || path === '') renderHome(app);
     else if (path === '/study') renderStudy(app);
@@ -428,7 +429,8 @@
       queue, idx: 0, stars: 0, correctCount: 0, combo: 0, maxCombo: 0,
       feedback: null, replay: isReplay, wrongPractice: isWrong, startTime: Date.now(),
     };
-    renderStudyIntro(app);
+    ensureAudio();
+    renderStudyStep(app);
   }
 
   function renderStudyIntro(app) {
@@ -437,7 +439,7 @@
     const reviewCount = queue.filter(q => q.type === 'review').length;
 
     app.innerHTML = `
-      <div class="back-bar"><button class="back-btn" onclick="location.hash='#/'">←</button></div>
+      <div class="back-bar"><button class="back-btn" onclick="location.hash='#/'">← 返回</button></div>
       <div class="char-card" style="margin-top:40px">
         <div style="font-size:72px;margin-bottom:16px">${viewState.wrongPractice ? '⚠️' : (viewState.replay ? '🔁' : '🚀')}</div>
         <h2 style="font-size:24px;margin-bottom:8px">${viewState.wrongPractice ? '错题复习' : (viewState.replay ? '再学一遍' : '今日学习')}</h2>
@@ -541,8 +543,9 @@
           <div class="img-content">
             ${hasStory
               ? `<div class="mnemonic">💡 ${item.st}</div>`
-              : `<div class="big-char char-font" style="font-size:72px;color:var(--primary)">${item.c}</div>
-                 <div class="img-hint">仔细看看「${item.c}」字怎么写</div>`}
+              : `<div class="big-char char-font" style="font-size:64px;color:var(--primary)">${item.c}</div>
+                 ${item.p ? `<div class="pinyin" style="font-size:20px;margin:6px 0;letter-spacing:3px">${item.p}</div>` : ''}
+                 <div class="img-hint">跟着读一读，用手描一描</div>`}
           </div>
         </div>
         <div class="img-group img-3">
@@ -815,7 +818,7 @@
     if (viewState.stars > 5) starHtml += `<span style="font-size:20px;align-self:center">+${viewState.stars - 5}</span>`;
 
     app.innerHTML = `
-      <div class="back-bar"><button class="back-btn" onclick="location.hash='#/'">←</button></div>
+      <div class="back-bar"><button class="back-btn" onclick="location.hash='#/'">← 返回</button></div>
       <div class="done-card">
         <div class="done-icon">🎉</div>
         <h2>学习完成！</h2>
@@ -857,7 +860,7 @@
     let starHtml = '';
     for (let i = 0; i < Math.min(stars, 5); i++) starHtml += '<span class="star">⭐</span>';
     return `
-      <div class="back-bar"><button class="back-btn" onclick="location.hash='#/'">←</button></div>
+      <div class="back-bar"><button class="back-btn" onclick="location.hash='#/'">← 返回</button></div>
       <div class="done-card">
         <div class="done-icon">🎉</div>
         <h2>${title}</h2>
@@ -873,9 +876,11 @@
 
   // ============ 错题本页 ============
   function renderWrongBook(app) {
+    if (!viewState.wbSelected) viewState = {};
     const chars = getWrongBookChars();
+    const selected = viewState.wbSelected;
     app.innerHTML = `
-      <div class="back-bar"><button class="back-btn" onclick="location.hash='#/'">←</button><strong style="font-size:18px">⚠️ 错题本</strong></div>
+      <div class="back-bar"><button class="back-btn" onclick="location.hash='#/'">← 返回</button><strong style="font-size:18px">⚠️ 错题本</strong></div>
       ${chars.length === 0 ? `
         <div class="char-card" style="margin-top:40px">
           <div style="font-size:64px;margin-bottom:12px">✨</div>
@@ -886,16 +891,24 @@
       ` : `
         <div class="page">
           <div style="background:#FFF3E0;border-radius:12px;padding:14px;margin-bottom:16px;font-size:14px;color:var(--text)">
-            📋 共 ${chars.length} 个字需要重点复习。每个字连续答对 ${MASTER_STREAK} 次才能移出错题本。
+            📋 共 ${chars.length} 个字需要重点复习。点字格可查看详情。
           </div>
           <button class="btn btn-warn" id="practiceWrong" style="margin-bottom:16px">开始复习错题 →</button>
           <div class="char-grid">
-            ${chars.map(c => `<div class="char-cell learned" data-id="${c.id}">${c.c}<span class="badge">⚠️</span></div>`).join('')}
+            ${chars.map(c => `<div class="char-cell learned wrong" data-id="${c.id}">${c.c}<span class="badge">⚠️</span></div>`).join('')}
           </div>
           <button class="btn btn-outline" id="clearWrong" style="margin-top:16px">标记全部为已掌握（清空错题本）</button>
         </div>
       `}
+      ${selected ? renderCharModal(selected) : ''}
     `;
+    document.querySelectorAll('.char-cell').forEach(c => {
+      c.onclick = () => { viewState.wbSelected = parseInt(c.dataset.id); renderWrongBook(app); };
+    });
+    const closeBtn = document.getElementById('modalClose');
+    if (closeBtn) closeBtn.onclick = () => { viewState.wbSelected = null; renderWrongBook(app); };
+    const modalSpeak = document.getElementById('modalSpeak');
+    if (modalSpeak) modalSpeak.onclick = () => { const ch = CHARLIB.find(c => c.id === viewState.wbSelected); if (ch) speak(ch.c, modalSpeak); };
     const pw = document.getElementById('practiceWrong');
     if (pw) pw.onclick = () => { location.hash = '#/study?mode=wrong'; };
     const cw = document.getElementById('clearWrong');
@@ -949,7 +962,7 @@
     const wrongSet = new Set(progress.wrongBook);
 
     app.innerHTML = `
-      <div class="back-bar"><button class="back-btn" onclick="location.hash='#/'">←</button><strong style="font-size:18px">📚 字库浏览</strong></div>
+      <div class="back-bar"><button class="back-btn" onclick="location.hash='#/'">← 返回</button><strong style="font-size:18px">📚 字库浏览</strong></div>
       <div class="search-box"><input type="text" placeholder="搜索字、拼音或词语..." value="${search}" id="searchInput"></div>
       <div class="level-tabs">${levels.map(l => `<div class="level-tab ${!search && level === l.lv ? 'active' : ''}" data-lv="${l.lv}">${l.name}</div>`).join('')}</div>
       <div class="char-grid">
@@ -1024,7 +1037,7 @@
     });
 
     app.innerHTML = `
-      <div class="back-bar"><button class="back-btn" onclick="location.hash='#/'">←</button><strong style="font-size:18px">📈 学习统计</strong></div>
+      <div class="back-bar"><button class="back-btn" onclick="location.hash='#/'">← 返回</button><strong style="font-size:18px">📈 学习统计</strong></div>
       <div class="stat-card">
         <h3>📊 总览</h3>
         <div class="stat-row">
@@ -1072,7 +1085,7 @@
   // ============ 设置 ============
   function renderSettings(app) {
     app.innerHTML = `
-      <div class="back-bar"><button class="back-btn" onclick="location.hash='#/'">←</button><strong style="font-size:18px">⚙️ 设置</strong></div>
+      <div class="back-bar"><button class="back-btn" onclick="location.hash='#/'">← 返回</button><strong style="font-size:18px">⚙️ 设置</strong></div>
       <div class="page">
         <div class="section-title">学习设置</div>
         <div class="setting-row">
@@ -1121,10 +1134,20 @@
       reader.onload = (ev) => { try { progress = Object.assign(defaultProgress(), JSON.parse(ev.target.result)); saveProgress(); toast('备份导入成功'); route(); } catch (err) { toast('导入失败：文件格式错误'); } };
       reader.readAsText(file);
     };
-    document.getElementById('resetBtn').onclick = () => {
-      if (confirm('确定要重置所有进度吗？这将清除所有学习记录、星星和成就，且无法恢复。')) {
-        progress = defaultProgress(); saveProgress(); toast('已重置所有进度'); route();
+    const rb = document.getElementById('resetBtn');
+    let resetArmed = false, resetTimer = null;
+    rb.onclick = () => {
+      if (!resetArmed) {
+        resetArmed = true;
+        const orig = rb.textContent;
+        rb.textContent = '⚠️ 再点一次确认重置';
+        rb.style.background = '#C62828';
+        toast('再点一次确认重置所有进度');
+        resetTimer = setTimeout(() => { resetArmed = false; rb.textContent = orig; rb.style.background = 'var(--danger)'; }, 4000);
+        return;
       }
+      clearTimeout(resetTimer);
+      progress = defaultProgress(); saveProgress(); toast('已重置所有进度'); route();
     };
     const rsb = document.getElementById('resetSimBtn');
     if (rsb) rsb.onclick = () => {
