@@ -483,7 +483,7 @@
           <button class="btn btn-outline" onclick="location.hash='#/stats'">📈 统计</button>
           <button class="btn btn-outline" onclick="location.hash='#/settings'">⚙️ 设置</button>
         </div>
-        <p style="text-align:center;font-size:11px;color:var(--text-light);padding:16px 0 8px">趣味识字 v3.1 · 数据保存在本地浏览器</p>
+        <p style="text-align:center;font-size:11px;color:var(--text-light);padding:16px 0 8px">趣味识字 v3.2 · 496字本地音频</p>
       </div>
     `;
   }
@@ -1199,7 +1199,7 @@
         ` : ''}
         <div class="section-title" style="color:var(--danger)">危险操作</div>
         <button class="btn" id="resetBtn" style="background:var(--danger);color:white">🗑️ 重置所有进度</button>
-        <p style="text-align:center;font-size:11px;color:var(--text-light);padding:24px 0 8px">趣味识字 v3.1 · 百度TTS · 适合5-6岁</p>
+        <p style="text-align:center;font-size:11px;color:var(--text-light);padding:24px 0 8px">趣味识字 v3.2 · 496字本地音频 · 适合5-6岁</p>
       </div>
     `;
     document.getElementById('dailyNew').onchange = (e) => { progress.dailyNew = parseInt(e.target.value); saveProgress(); toast('设置已保存'); };
