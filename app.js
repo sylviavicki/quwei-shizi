@@ -483,7 +483,7 @@
           <button class="btn btn-outline" onclick="location.hash='#/stats'">📈 统计</button>
           <button class="btn btn-outline" onclick="location.hash='#/settings'">⚙️ 设置</button>
         </div>
-        <p style="text-align:center;font-size:11px;color:var(--text-light);padding:16px 0 8px">趣味识字 v3.2 · 义务教育字表</p>
+        <p style="text-align:center;font-size:11px;color:var(--text-light);padding:16px 0 8px">趣味识字 v3.3 · 教育大纲分级</p>
       </div>
     `;
   }
@@ -618,8 +618,9 @@
         <div class="img-group img-1">
           <div class="img-label">① 实物联想</div>
           <div class="img-content">
-            <span class="big-emoji">${hasEmoji ? item.e : `<span class="char-font" style="font-size:80px;color:var(--primary)">${item.c}</span>`}</span>
-            <div class="img-hint">${hasEmoji ? `看到这个，就想到「${item.c}」字` : `仔细看「${item.c}」字的样子`}</div>
+            ${hasEmoji ? `<span class="big-emoji">${item.e}</span>` : ''}
+            <div class="char-font" style="font-size:${hasEmoji ? '56px' : '80px'};color:var(--primary);font-weight:bold;margin-top:4px">${item.c}</div>
+            <div class="img-hint">${hasEmoji ? `看到「${item.e}」，就想到「${item.c}」字` : `仔细看「${item.c}」字的样子`}</div>
           </div>
         </div>
         <div class="img-group img-2">
@@ -1199,7 +1200,7 @@
         ` : ''}
         <div class="section-title" style="color:var(--danger)">危险操作</div>
         <button class="btn" id="resetBtn" style="background:var(--danger);color:white">🗑️ 重置所有进度</button>
-        <p style="text-align:center;font-size:11px;color:var(--text-light);padding:24px 0 8px">趣味识字 v3.2 · 义务教育字表 · 适合5-6岁</p>
+        <p style="text-align:center;font-size:11px;color:var(--text-light);padding:24px 0 8px">趣味识字 v3.3 · 教育大纲分级 · 适合5-6岁</p>
       </div>
     `;
     document.getElementById('dailyNew').onchange = (e) => { progress.dailyNew = parseInt(e.target.value); saveProgress(); toast('设置已保存'); };
