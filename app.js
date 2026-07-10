@@ -406,6 +406,8 @@
     else if (params.get('mode') === 'wrong') viewState = { wrongPractice: true };
     else if (path === '/wrongbook') { const s = viewState.wbSelected; viewState = s != null ? { wbSelected: s } : {}; }
     else viewState = {};
+    // 标记页面类型，横屏时学习页用全屏 flex 布局（不滚动，自适应视口）
+    document.body.dataset.page = ['/study','/wrongbook'].includes(path) ? 'learn' : 'home';
     const app = document.getElementById('app');
     if (path === '/' || path === '') renderHome(app);
     else if (path === '/study') renderStudy(app);

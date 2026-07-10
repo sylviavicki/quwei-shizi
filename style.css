@@ -905,6 +905,28 @@ html, body {
 }
 
 /* ============================================
+   学习页全屏布局 — 内容不滚动，适应视口高度
+   首页和其他列表页保留可滚动
+   ============================================ */
+body[data-page="learn"] #app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  max-width: 100%;
+}
+body[data-page="learn"] .back-bar,
+body[data-page="learn"] .learn-header { flex-shrink: 0; }
+body[data-page="learn"] .learn-progress { flex-shrink: 0; }
+body[data-page="learn"] .char-card,
+body[data-page="learn"] .done-card {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* ============================================
    响应式 - 手机 + 平板适配
    ============================================ */
 
@@ -961,13 +983,52 @@ html, body {
 
 /* 平板横屏 / 大屏 1024px+ */
 @media (min-width: 1024px) {
-  #app { max-width: 980px; }
+  #app { max-width: 100%; }
   .char-grid { grid-template-columns: repeat(10, 1fr); }
   .ach-grid { grid-template-columns: repeat(8, 1fr); }
-  .char-card .big-char { font-size: 160px; }
-  .option-btn { font-size: 72px; padding: 40px 0; }
-  .options-grid { max-width: 700px; margin: 0 auto; }
-  .three-img .big-emoji { font-size: 96px; }
+  .hero h1 { font-size: 36px; }
+  .hero p { font-size: 18px; }
+
+  /* 学习页横屏：字更大、卡片更宽 */
+  body[data-page="learn"] .char-card {
+    margin: 0 40px 16px;
+    padding: 24px 40px;
+  }
+  body[data-page="learn"] .char-card .big-char { font-size: 160px; }
+  body[data-page="learn"] .char-card .emoji { font-size: 72px; }
+  body[data-page="learn"] .char-card .pinyin { font-size: 28px; }
+  body[data-page="learn"] .done-card {
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* 选择题 4 列 */
+  .options-grid {
+    grid-template-columns: repeat(4, 1fr);
+    max-width: 900px;
+    margin: 0 auto;
+    gap: 16px;
+  }
+  .option-btn { font-size: 52px; padding: 22px 0; }
+
+  /* 三组图横排 */
+  .char-card.three-img {
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .char-card.three-img .img-group {
+    flex: 1;
+    min-width: 220px;
+  }
+  .three-img .big-emoji { font-size: 80px; }
+
+  /* 词组选项横排 */
+  .quiz-prompt { font-size: 22px; }
+  .quiz-prompt .highlight { font-size: 48px; }
+  .speak-btn { width: 64px; height: 64px; font-size: 28px; }
 }
 
 /* 横屏手机优化 */
