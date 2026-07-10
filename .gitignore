@@ -1,0 +1,39 @@
+# 开发脚本和工具（网页运行不需要）
+.pylibs/
+
+# test/ 目录：排除开发脚本，保留测试用例
+# 开发工具脚本（排除推送）
+test/edge_tts_build.py
+test/edge_tts_probe.py
+test/edge_tts_sample.py
+test/edge_tts_samples.py
+test/monitor_sync.sh
+test/download_audio.js
+test/rebuild_data.py
+test/regrade.py
+# 测试用例（保留推送）: algorithm_test.js / 测试用例.md
+
+# 备份目录（旧的百度音频备份）
+audio_baidu_old/
+audio_bak_*/
+
+# 试听样张
+audio_test/
+
+# 临时文件和日志
+build.log
+.sync_ready
+*.log
+
+# 探测音频文件
+probe_*.mp3
+
+# 鸿蒙占位目录（真实工程在 D:\AI\FunLearn）
+harmony/
+
+# 字表源文件（非运行时）
+edu_chars.txt
+
+# Python
+__pycache__/
+*.pyc

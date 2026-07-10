@@ -212,24 +212,42 @@
     const cleanup = () => { if (btn) btn.classList.remove('speaking'); };
     if (btn) btn.classList.add('speaking');
 
-    // 桌面端 + 有系统 TTS 引擎：优先用 Web Speech API
-    if (!IS_MOBILE && 'speechSynthesis' in window) {
-      if (!voices.length) voices = window.speechSynthesis.getVoices();
-      if (voices.length > 0) {
-        window.speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(text);
-        u.lang = 'zh-CN'; u.rate = 0.8; u.pitch = 1.1;
-        const zh = voices.find(v => v.lang.startsWith('zh') && /female|女|ting/i.test(v.name))
-          || voices.find(v => v.lang.startsWith('zh'))
-          || voices.find(v => v.lang.startsWith('cmn'));
-        if (zh) u.voice = zh;
-        u.onend = cleanup; u.onerror = cleanup;
-        try { window.speechSynthesis.speak(u); return; } catch (e) {}
-      }
+    let ttsEl = document.getElementById('ttsAudio');
+    if (!ttsEl) {
+      ttsEl = document.createElement('audio');
+      ttsEl.id = 'ttsAudio';
+      ttsEl.style.display = 'none';
+      document.body.appendChild(ttsEl);
     }
+    ttsEl.pause();
+    const code = text.charCodeAt(0);
 
-    // 移动端或无系统 TTS：用百度 TTS 在线语音（不依赖系统引擎）
-    playOnlineTTS(text, cleanup);
+    // 本地音频失败的回退：桌面端→系统 Web Speech API, 移动端→百度在线→Web Speech
+    const onLocalFail = () => {
+      if (!IS_MOBILE && 'speechSynthesis' in window) {
+        if (!voices.length) voices = window.speechSynthesis.getVoices();
+        if (voices.length > 0) {
+          window.speechSynthesis.cancel();
+          const u = new SpeechSynthesisUtterance(text);
+          u.lang = 'zh-CN'; u.rate = 0.8; u.pitch = 1.1;
+          const zh = voices.find(v => v.lang.startsWith('zh') && /female|女|ting/i.test(v.name))
+            || voices.find(v => v.lang.startsWith('zh'))
+            || voices.find(v => v.lang.startsWith('cmn'));
+          if (zh) u.voice = zh;
+          u.onend = cleanup; u.onerror = cleanup;
+          try { window.speechSynthesis.speak(u); return; } catch(e) {}
+        }
+      }
+      playOnlineTTS(text, cleanup);
+    };
+
+    // 统一：优先本地 Edge TTS 音频（晓晓女声 -40%，桌面端+移动端统一入口）
+    ttsEl.onended = cleanup;
+    ttsEl.onerror = onLocalFail;
+    ttsEl.src = 'audio/' + code + '.mp3';
+    ttsEl.load();
+    const p = ttsEl.play();
+    if (p && p.catch) p.catch(onLocalFail);
   }
 
   // 朗读：优先本地音频文件 → 百度在线TTS → Web Speech API 三级 fallback
@@ -483,7 +501,7 @@
           <button class="btn btn-outline" onclick="location.hash='#/stats'">📈 统计</button>
           <button class="btn btn-outline" onclick="location.hash='#/settings'">⚙️ 设置</button>
         </div>
-        <p style="text-align:center;font-size:11px;color:var(--text-light);padding:16px 0 8px">趣味识字 v3.3 · 教育大纲分级</p>
+        <p style="text-align:center;font-size:11px;color:var(--text-light);padding:16px 0 8px">趣味识字 v3.4 · 晓晓女声 · 教育大纲分级</p>
       </div>
     `;
   }
@@ -1200,7 +1218,7 @@
         ` : ''}
         <div class="section-title" style="color:var(--danger)">危险操作</div>
         <button class="btn" id="resetBtn" style="background:var(--danger);color:white">🗑️ 重置所有进度</button>
-        <p style="text-align:center;font-size:11px;color:var(--text-light);padding:24px 0 8px">趣味识字 v3.3 · 教育大纲分级 · 适合5-6岁</p>
+        <p style="text-align:center;font-size:11px;color:var(--text-light);padding:24px 0 8px">趣味识字 v3.4 · 晓晓女声 · 教育大纲分级 · 适合5-6岁</p>
       </div>
     `;
     document.getElementById('dailyNew').onchange = (e) => { progress.dailyNew = parseInt(e.target.value); saveProgress(); toast('设置已保存'); };
